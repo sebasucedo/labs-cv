@@ -1,6 +1,7 @@
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
 using io.ucedo.labs.cv.domain;
+using System;
 using System.Net;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
@@ -10,19 +11,25 @@ namespace io.ucedo.labs.cv;
 
 public class Function
 {
-    
+    readonly HtmlGenerator _generator;
+    public Function()
+    {
+        _generator = new HtmlGenerator();
+    }
+
     public async Task<APIGatewayProxyResponse> FunctionHandler(APIGatewayProxyRequest request, ILambdaContext context)
     {
-		try
-		{
-            var html = await HtmlGenerator.GenerateHtml();
+        try
+        {
+            string queryString = string.Join("&", request.QueryStringParameters.Select(kvp => kvp.Key + "=" + kvp.Value)).Replace(" ", "%20");
+            //string queryString = Uri.EscapeDataString(string.Join("&", request.QueryStringParameters.Select(kvp => kvp.Key + "=" + kvp.Value)));
 
-            HttpStatusCode statusCode = HttpStatusCode.OK; //or HttpStatusCode.Created when not cached
+            var generated = await _generator.GenerateHtml(queryString);
 
             var response = new APIGatewayProxyResponse
             {
-                StatusCode = (int)statusCode,
-                Body = html,
+                StatusCode = (int)generated.StatusCode,
+                Body = generated.Content,
                 Headers = new Dictionary<string, string>
                 {
                     { "Content-Type", "text/html" }
@@ -32,7 +39,7 @@ public class Function
         }
         catch (Exception ex)
 		{
-            LambdaLogger.Log($"{ex.Message}\r\n{ex.StackTrace}");
+            LambdaLogger.Log($"Exception: {ex.Message}\r\n{ex.StackTrace}");
             return new APIGatewayProxyResponse
             {
                 StatusCode = (int)HttpStatusCode.InternalServerError,
@@ -44,4 +51,5 @@ public class Function
             };
         }
     }
+
 }
