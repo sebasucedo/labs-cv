@@ -4,7 +4,11 @@
       "commandName": "Executable",
       "commandLineArgs": "--port 5050",
       "workingDirectory": ".\\bin\\$(Configuration)\\net6.0",
-      "executablePath": "%USERPROFILE%\\.dotnet\\tools\\dotnet-lambda-test-tool-6.0.exe"
+      "executablePath": "%USERPROFILE%\\.dotnet\\tools\\dotnet-lambda-test-tool-6.0.exe",
+      "environmentVariables": {
+        "arn_ai_lambda": "arn:aws:lambda:us-east-1:618148662581:function:labs-cv-ai",
+        "api_gateway_websocket": "wss://johkmjgik9.execute-api.us-east-1.amazonaws.com/production"
+      }
     }
   }
 }
