@@ -1,0 +1,41 @@
+﻿  <section class="section">
+    <div class='container-center'>
+      <div class='content'>
+		<div id="loader"></div>
+        <p>Working on CV {{ queryString }}, please wait ...</p>
+      </div>
+    </div>
+    <script>
+      var socketUrl = '{{ websocketUrl }}';
+      var socket = new WebSocket(socketUrl);
+	  
+	  const timeoutId = setTimeout(function() {
+        window.location.reload();
+      }, 90000);
+
+      socket.onopen = function(event) {
+        console.log('Connection opened - ', event);
+      };
+
+	  socket.onmessage = function(event) {
+        console.log('Message received');
+		clearTimeout(timeoutId);
+        document.body.innerHTML = event.data; 
+	  };
+	  
+	  socket.onerror = function(event) {
+        console.error('An error has occurred:', event);
+	    setTimeout(function() {
+          window.location.reload();
+        }, 2000);
+	  };
+
+	  socket.onclose = function(event) {
+        if (event.wasClean) {
+          console.log('The connection has been closed successfully');
+        } else {
+          console.error('The connection has been closed unexpectedly');
+        }
+      };
+    </script>
+  </section>
