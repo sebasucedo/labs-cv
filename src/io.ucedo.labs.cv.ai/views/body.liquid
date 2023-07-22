@@ -1,0 +1,91 @@
+﻿<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns">
+      <div id="basicInfo" class="column is-two-thirds">
+        <h1 class="title is-2 m-0">{{ Name }}</h1>
+        <h2 class="title is-5">{{ Headline }}</h2>
+        <ul>
+          {% for item in Info %}
+            <li>
+              <a href="{{ item.Href }}" target="_blank">
+                <i class="{{ item.Class }}"></i>
+                <span>{{ item.Title }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="column is-one-third">
+        <div class="square-image-container">
+          <div id="profilePicture" class="square-image" style="background-image: url('https://cdn.ucedo.io/cv/profile_web.jpg');"></div>
+        </div>
+      </div>
+    </div>
+    <div class="columns">
+      <div id="about" class="column is-full">
+        <h2 class="title is-4">About</h2>
+        <p class="has-text-justified">{{ About }}</p>
+      </div>
+    </div>
+    <div class="columns">
+      <div id="experience" class="column is-two-thirds">
+        <h2 class="title is-4">Experience</h2>
+        <ul>
+          {% for experience in Experiences %}
+            <li class="mb-3">
+              <div>
+                <h5 class="title is-5 mb-1">{{ experience.Title }}</h5>
+                <p>{{ experience.Company }}</p>
+                <p>{{ experience.Age }}</p>
+                <p>{{ experience.Description }}</p>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div id="grey" class="column has-background-custom-grey">
+        <div class="mb-6">
+          <h2 class="title is-4">Education</h2>
+          <ul>
+            {% for item in Education %}
+              <li class="mb-3">
+                <div>
+                  <h5 class="title is-5 mb-1">{{ item.Degree }}</h5>
+                  <p>{{ item.Institution }}</p>
+                  <p>{{ item.Age }}</p>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="mb-6">
+          <h2 class="title is-4">Languages</h2>
+          <ul>
+            {% for language in Languages %}
+              <li class="mb-3">
+                <div>
+                  <h5 class="title is-5 mb-1">{{ language.Name }}</h5>
+                  <p>{{ language.Proficiency }}</p>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="mb-6">
+          <h2 class="title is-4">Certifications</h2>
+          <ul>
+            {% for certification in Certifications %}
+              <li class="mb-3">
+                <div>
+                  <h5 class="title is-5 mb-1">{{ certification.Name }}</h5>
+                  <p>{{ certification.IssuingOrganization }}</p>
+                  <p>{{ certification.IssueDate }}</p>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

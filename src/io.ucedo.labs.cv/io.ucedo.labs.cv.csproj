@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -22,9 +22,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\io.ucedo.labs.cv.ai\io.ucedo.labs.cv.ai.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="NewFolder\" />
   </ItemGroup>
   <ItemGroup>
     <None Update="views\body.liquid">
