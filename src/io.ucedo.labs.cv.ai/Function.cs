@@ -1,4 +1,5 @@
 using Amazon.Lambda.Core;
+using io.ucedo.labs.cv.ai.domain;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
@@ -7,15 +8,19 @@ namespace io.ucedo.labs.cv.ai;
 
 public class Function
 {
-    
-    /// <summary>
-    /// A simple function that takes a string and does a ToUpper
-    /// </summary>
-    /// <param name="input"></param>
-    /// <param name="context"></param>
-    /// <returns></returns>
-    public string FunctionHandler(string input, ILambdaContext context)
+    private readonly Generator _generator;
+
+    public Function()
     {
-        return input.ToUpper();
+        _generator = new Generator();
+    }
+
+    public async Task<string> FunctionHandler(string input, ILambdaContext context)
+    {
+        var key = input.Replace(" ", "%20");
+
+        var html = await _generator.Generate(key) ?? Constants.SHRUGGIE;
+
+        return html;
     }
 }

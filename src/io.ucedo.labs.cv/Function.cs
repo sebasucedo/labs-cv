@@ -21,10 +21,13 @@ public class Function
     {
         try
         {
-            string queryString = string.Join("&", request.QueryStringParameters.Select(kvp => kvp.Key + "=" + kvp.Value)).Replace(" ", "%20");
+            string key = request.QueryStringParameters != null ?
+                                    string.Join("&", request.QueryStringParameters.Select(kvp => kvp.Key + "=" + kvp.Value)).Replace(" ", "%20") :
+                                    Constants.DEFAULT; 
+
             //string queryString = Uri.EscapeDataString(string.Join("&", request.QueryStringParameters.Select(kvp => kvp.Key + "=" + kvp.Value)));
 
-            var generated = await _generator.GenerateHtml(queryString);
+            var generated = await _generator.GenerateHtml(key);
 
             var response = new APIGatewayProxyResponse
             {
