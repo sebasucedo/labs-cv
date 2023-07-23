@@ -1,9 +1,12 @@
-﻿using io.ucedo.labs.cv.ai.openai;
+﻿using io.ucedo.labs.cv.ai.domain;
+using io.ucedo.labs.cv.ai.openai;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,12 +15,32 @@ namespace io.ucedo.labs.cv.ai.test
     [TestFixture]
     public class OpenAIIntegrationTest
     {
-        string _openAIKey;
+        IHttpClientFactory? _httpClientFactory;
+
+        private static IHttpClientFactory GetHttpClientFactory(string openAiKey)
+        {
+            var serviceCollection = new ServiceCollection();
+            serviceCollection.AddHttpClient(Constants.OPENAI_CLIENT_NAME, client =>
+            {
+                client.BaseAddress = new Uri("https://api.openai.com/");
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openAiKey);
+                client.Timeout = TimeSpan.FromSeconds(60);
+            });
+            var serviceProvider = serviceCollection.BuildServiceProvider();
+            var httpClientFactory = serviceProvider.GetService<IHttpClientFactory>();
+            if (httpClientFactory == null)
+                throw new NullReferenceException(nameof(httpClientFactory));
+
+            return httpClientFactory;
+        }
+
 
         [SetUp]
         public void SetUp()
         {
-            _openAIKey = "{KEY}";
+            var openAIKey = "{KEY}";
+
+            _httpClientFactory = GetHttpClientFactory(openAIKey);
         }
 
         [Test]
@@ -28,7 +51,10 @@ namespace io.ucedo.labs.cv.ai.test
             string about = "software manager | software architect | 15 years of experience | led development teams | skills in project management, team leadership, and process improvement";
             string drawnUpAs = $", drawn up as if it were {systemRoleContent} but without saying that it is {systemRoleContent}";
 
-            var openAI = new OpenAI(_openAIKey, systemRoleContent);
+            if (_httpClientFactory == null) 
+                throw new NullReferenceException(nameof(_httpClientFactory));
+
+            var openAI = new OpenAI(_httpClientFactory, systemRoleContent);
 
             var prompt = $"I need an about for my CV based on: {about}{drawnUpAs}";
 
@@ -49,7 +75,10 @@ namespace io.ucedo.labs.cv.ai.test
         {
             const string systemRoleContent = "a pirate";
 
-            var openAI = new OpenAI(_openAIKey, systemRoleContent);
+            if (_httpClientFactory == null)
+                throw new NullReferenceException(nameof(_httpClientFactory));
+
+            var openAI = new OpenAI(_httpClientFactory, systemRoleContent);
 
             var prompt = $"In the following image of me, I need you to depict me as {systemRoleContent}";
 

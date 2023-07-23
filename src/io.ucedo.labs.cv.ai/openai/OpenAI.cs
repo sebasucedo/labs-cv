@@ -1,4 +1,4 @@
-﻿using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
+﻿using io.ucedo.labs.cv.ai.domain;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,31 +12,30 @@ namespace io.ucedo.labs.cv.ai.openai;
 
 public class OpenAI
 {
-    const string URL_CHAT_COMPLETIONS = "https://api.openai.com/v1/chat/completions";
-    const string URL_IMAGE_EDIT = "https://api.openai.com/v1/images/edits";
+    const string URL_CHAT_COMPLETIONS = "v1/chat/completions";
+    const string URL_IMAGE_EDIT = "v1/images/edits";
 
-    private readonly string _apiKey;
+    private readonly IHttpClientFactory _httpClientFactory;
+
     public string Model { get; set; } = "gpt-3.5-turbo";
     public double Temperature { get; set; } = 0.7;
     public string SystemRoleContent { get; set; } = "You are a helpful assistant";
 
     private readonly List<Message> _messages = new();
 
-    public OpenAI(string apiKey, string systemRole)
+    public OpenAI(IHttpClientFactory httpClientFactory, string systemRole)
     {
-        _apiKey = apiKey;
         if (!string.IsNullOrEmpty(systemRole))
             SystemRoleContent = $"You are {systemRole}.";
+        _httpClientFactory = httpClientFactory;
 
         _messages.Add(new Message { role = "system", content = systemRole });
     }
+    public OpenAI(IHttpClientFactory httpClientFactory) : this(httpClientFactory, string.Empty) { }
 
-    public OpenAI(string apiKey) : this(apiKey, string.Empty) { }
-
-    public async Task<string> SendChatCompletionRequest(string userPrompt)
+    public async Task<string> SendChatCompletionRequest(string userPrompt, int maxTokens = Constants.MAX_TOKENS)
     {
-        using HttpClient client = new();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+        var client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
 
         _messages.Add(new Message { role = "user", content = userPrompt });
 
@@ -45,6 +44,7 @@ public class OpenAI
             model = Model,
             messages = _messages.ToArray(),
             temperature = Temperature,
+            max_tokens = maxTokens
         };
 
         var content = new StringContent(JsonSerializer.Serialize(requestData), Encoding.UTF8, "application/json");
@@ -64,8 +64,7 @@ public class OpenAI
 
     public async Task<string> SendSingleChatCompletionRequest(string prompt)
     {
-        using HttpClient client = new();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+        var client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
 
         var requestData = new
         {
@@ -95,8 +94,7 @@ public class OpenAI
 
     public async Task<ImageResponse?> SendImagesEditsRequest(string userPrompt, string imagePath, string maskPath)
     {
-        using HttpClient client = new();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+        var client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
 
         byte[] imageData = File.ReadAllBytes(imagePath);
         byte[] maskData = File.ReadAllBytes(maskPath);

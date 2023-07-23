@@ -16,6 +16,7 @@
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.103.22" />
 	<PackageReference Include="DotLiquid" Version="2.2.692" />
 	<PackageReference Include="HtmlAgilityPack" Version="1.11.48" />
+	<PackageReference Include="Microsoft.Extensions.Http" Version="7.0.0" />
   </ItemGroup>
   <ItemGroup>
     <None Update="files\profile_web.png">
