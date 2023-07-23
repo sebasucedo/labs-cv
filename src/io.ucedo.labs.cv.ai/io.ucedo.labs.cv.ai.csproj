@@ -18,21 +18,14 @@
 	<PackageReference Include="HtmlAgilityPack" Version="1.11.48" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Amazon.Lambda.Core" Version="2.1.0" />
-    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.3.1" />
-  </ItemGroup>
-  <ItemGroup>
     <None Update="files\profile_web.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="files\profile_web_mask_5.png">
+    <None Update="files\profile_web_mask.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="views\body.liquid">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="files\" />
   </ItemGroup>
 </Project>

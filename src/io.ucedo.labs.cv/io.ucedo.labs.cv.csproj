@@ -21,9 +21,6 @@
     <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.3.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\io.ucedo.labs.cv.ai\io.ucedo.labs.cv.ai.csproj" />
-  </ItemGroup>
-  <ItemGroup>
     <None Update="views\body.liquid">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

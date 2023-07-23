@@ -17,7 +17,9 @@ public class Function
 
     public async Task<string> FunctionHandler(string input, ILambdaContext context)
     {
-        var html = await _generator.Generate(input) ?? Constants.SHRUGGIE;
+        var key = input.Replace(" ", "%20");
+
+        var html = await _generator.Generate(key) ?? Constants.SHRUGGIE;
 
         return html;
     }
