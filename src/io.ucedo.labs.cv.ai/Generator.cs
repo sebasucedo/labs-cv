@@ -7,19 +7,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
-using io.ucedo.labs.cv.ai.domain;
 using DotLiquid;
-using io.ucedo.labs.cv.ai.openai;
 using System.Collections.Specialized;
 using System.Web;
-using Amazon.DynamoDBv2.Model;
 using HtmlAgilityPack;
+using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http.Headers;
+using io.ucedo.labs.cv.ai.domain;
+using io.ucedo.labs.cv.ai.openai;
 
 namespace io.ucedo.labs.cv.ai;
 
 public class Generator
 {
     const string DATA_URL = "https://cdn.ucedo.io/cv/raw.json";
+    const string OPENAI_URL = "https://api.openai.com/";
 
     private readonly OpenAI _openAI;
     private readonly CacheManager _cacheManager;
@@ -27,9 +29,26 @@ public class Generator
     public Generator()
     {
         var openAiKey = Environment.GetEnvironmentVariable("openai_api_key") ?? string.Empty;
-
-        _openAI = new OpenAI(openAiKey);
+        IHttpClientFactory httpClientFactory = GetHttpClientFactory(openAiKey);
+        _openAI = new OpenAI(httpClientFactory);
         _cacheManager = new CacheManager(new DynamoDBContext(new AmazonDynamoDBClient()));
+    }
+
+    private static IHttpClientFactory GetHttpClientFactory(string openAiKey)
+    {
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddHttpClient(Constants.OPENAI_CLIENT_NAME, client =>
+        {
+            client.BaseAddress = new Uri(OPENAI_URL);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openAiKey);
+            client.Timeout = TimeSpan.FromSeconds(60);
+        });
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+        var httpClientFactory = serviceProvider.GetService<IHttpClientFactory>();
+        if (httpClientFactory == null)
+            throw new NullReferenceException(nameof(httpClientFactory));
+
+        return httpClientFactory;
     }
 
     public async Task<string?> Generate(string key)
@@ -45,7 +64,7 @@ public class Generator
         html = await ReplaceBodyFromOpenAI(html, parameters);
 
         html = await ReplaceProfilePictureFromOpenAI(html, parameters.As);
-        
+
         await Save(key, html);
 
         LambdaLogger.Log($"End {nameof(Generate)}(key: {key})");
@@ -67,7 +86,12 @@ public class Generator
     private static Dictionary<string, string> ParseQueryString(string queryString)
     {
         NameValueCollection queryParameters = HttpUtility.ParseQueryString(queryString);
-        return queryParameters.AllKeys.ToDictionary(k => k, k => queryParameters[k]);
+        //return queryParameters.AllKeys.ToDictionary(k => k, k => queryParameters[k]);
+
+        var dictionary = new Dictionary<string, string>();
+        foreach (string key in queryParameters.Keys)
+            dictionary.Add(key, queryParameters[key] ?? string.Empty);
+        return dictionary;
     }
 
     private static InputParameters GetParameters(string queryString)
