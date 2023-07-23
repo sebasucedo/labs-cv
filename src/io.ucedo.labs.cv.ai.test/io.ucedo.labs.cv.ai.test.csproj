@@ -12,4 +12,12 @@
   <ItemGroup>
     <ProjectReference Include="..\io.ucedo.labs.cv.ai\io.ucedo.labs.cv.ai.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="files\profile_web.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="files\profile_web_mask.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

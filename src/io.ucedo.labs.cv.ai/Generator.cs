@@ -132,16 +132,17 @@ public class Generator
     {
         LambdaLogger.Log("Begin OpenAI data");
 
+        var drawnUpAs = string.Empty;
         if (!string.IsNullOrEmpty(inputParameters.As))
-            inputParameters.As = $", drawn up as if it were {inputParameters.As} but without saying that it is {inputParameters.As}";
+            drawnUpAs = $", drawn up as if it were {inputParameters.As} but without saying that it is {inputParameters.As}";
 
         foreach (var experience in data.Experiences.AsEnumerable().Reverse())
         {
-            var experiencePrompt = Prompts.GetExperiencePrompt(experience.Company, experience.Title, experience.Age, experience.Description, inputParameters.As);
+            var experiencePrompt = Prompts.GetExperiencePrompt(experience.Company, experience.Title, experience.Age, experience.Description, drawnUpAs);
             experience.Description = await _openAI.SendChatCompletionRequest(experiencePrompt);
         }
 
-        var aboutPrompt = Prompts.GetAboutPrompt(data.About, inputParameters.As);
+        var aboutPrompt = Prompts.GetAboutPrompt(data.About, drawnUpAs);
         data.About = await _openAI.SendChatCompletionRequest(aboutPrompt);
 
         LambdaLogger.Log("End OpenAI data");
@@ -195,12 +196,12 @@ public class Generator
 
     public async Task<string> ReplaceProfilePictureFromOpenAI(string html, string @as)
     {
-        if (@as == Constants.DEFAULT)
+        if (string.IsNullOrEmpty(@as))
             return html;
 
         var imagePath = "./files/profile_web.png";
-        var maskPath = "./files/profile_web_mask_5.png";
-        var prompt = $"In the following image of me, I need you to depict me as {@as}";
+        var maskPath = "./files/profile_web_mask.png";
+        var prompt = Prompts.GetProfilePicturePrompt(@as);
         var response = await _openAI.SendImagesEditsRequest(prompt, imagePath, maskPath);
         if (response == null || !response.data.Any())
             return html;
