@@ -130,10 +130,12 @@ public class HtmlGenerator
 
             if (response.HttpStatusCode != HttpStatusCode.Accepted)
                 LambdaLogger.Log($"Call to {functionArn} failed with status code: {response.HttpStatusCode}.");
+
+            LambdaLogger.Log($"Call to {functionArn}, payload: {payload}.");
         }
         catch (Exception ex)
         {
-            LambdaLogger.Log($"Exception calling {functionArn} failed with message: {ex.Message}.");
+            LambdaLogger.Log($"Exception calling {functionArn} failed with message: {ex.Message}.\r\n{ex.StackTrace}");
         }
     }
 
