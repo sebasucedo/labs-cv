@@ -1,5 +1,6 @@
 ﻿using DotLiquid;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,20 +11,20 @@ namespace io.ucedo.labs.cv.ai.domain;
 
 public class Data
 {
-    public string Name { get; set; }
-    public string Headline { get; set; }
-    public string About { get; set; }
-    public List<InfoItem> Info { get; set; }
-    public List<Experience> Experiences { get; set; }
-    public List<EducationItem> Education { get; set; }
-    public List<Language> Languages { get; set; }
-    public List<Certification> Certifications { get; set; }
+    public string Name { get; set; } = null!;
+    public string Headline { get; set; } = null!;
+    public string About { get; set; } = null!;
+    public IEnumerable<InfoItem> Info { get; set; } = Enumerable.Empty<InfoItem>();
+    public IEnumerable<Experience> Experiences { get; set; } = Enumerable.Empty<Experience>();
+    public IEnumerable<EducationItem> Education { get; set; } = Enumerable.Empty<EducationItem>();
+    public IEnumerable<Language> Languages { get; set; } = Enumerable.Empty<Language>();
+    public IEnumerable<Certification> Certifications { get; set; } = Enumerable.Empty<Certification>();
 
     public class InfoItem : ILiquidizable
     {
-        public string Href { get; set; }
-        public string @Class { get; set; }
-        public string Title { get; set; }
+        public string Href { get; set; } = null!;
+        public string @Class { get; set; } = null!;
+        public string Title { get; set; } = null!;
         public object ToLiquid()
         {
             return new
@@ -37,10 +38,10 @@ public class Data
 
     public class Experience : ILiquidizable
     {
-        public string Title { get; set; }
-        public string Company { get; set; }
-        public string Age { get; set; }
-        public string Description { get; set; }
+        public string Title { get; set; } = null!;
+        public string Company { get; set; } = null!;
+        public string Age { get; set; } = null!;
+        public string Description { get; set; } = null!;
 
         public object ToLiquid()
         {
@@ -56,9 +57,9 @@ public class Data
 
     public class EducationItem : ILiquidizable
     {
-        public string Degree { get; set; }
-        public string Institution { get; set; }
-        public string Age { get; set; }
+        public string Degree { get; set; } = null!;
+        public string Institution { get; set; } = null!;
+        public string Age { get; set; } = null!;
         public object ToLiquid()
         {
             return new
@@ -72,8 +73,8 @@ public class Data
 
     public class Language : ILiquidizable
     {
-        public string Name { get; set; }
-        public string Proficiency { get; set; }
+        public string Name { get; set; } = null!;
+        public string Proficiency { get; set; } = null!;
         public object ToLiquid()
         {
             return new
@@ -86,11 +87,11 @@ public class Data
 
     public class Certification : ILiquidizable
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
         [JsonPropertyName("issuing_organization")]
-        public string IssuingOrganization { get; set; }
+        public string IssuingOrganization { get; set; } = null!;
         [JsonPropertyName("issue_date")]
-        public string IssueDate { get; set; }
+        public string IssueDate { get; set; } = null!;
         public object ToLiquid()
         {
             return new
