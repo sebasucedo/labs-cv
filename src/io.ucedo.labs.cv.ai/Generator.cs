@@ -15,6 +15,12 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Headers;
 using io.ucedo.labs.cv.ai.domain;
 using io.ucedo.labs.cv.ai.openai;
+using static io.ucedo.labs.cv.ai.domain.Data;
+using System.Diagnostics;
+using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
+using Amazon.S3;
+using Amazon;
+using Amazon.S3.Transfer;
 
 namespace io.ucedo.labs.cv.ai;
 
@@ -22,9 +28,11 @@ public class Generator
 {
     const string DATA_URL = "https://cdn.ucedo.io/cv/raw.json";
     const string OPENAI_URL = "https://api.openai.com/";
+    const string CDN_URL = "https://cdn.ucedo.io/";
 
     private readonly OpenAI _openAI;
     private readonly CacheManager _cacheManager;
+    private readonly S3Manager _s3Manager;
 
     public Generator()
     {
@@ -32,6 +40,11 @@ public class Generator
         IHttpClientFactory httpClientFactory = GetHttpClientFactory(openAiKey);
         _openAI = new OpenAI(httpClientFactory);
         _cacheManager = new CacheManager(new DynamoDBContext(new AmazonDynamoDBClient()));
+
+        var bucketName = "my-personal-public-info";
+        var awsAccessKey = Environment.GetEnvironmentVariable("aws_access_key") ?? string.Empty;
+        var awsSecretKey = Environment.GetEnvironmentVariable("aws_secret_key") ?? string.Empty;
+        _s3Manager = new S3Manager(bucketName, awsAccessKey, awsSecretKey);
     }
 
     private static IHttpClientFactory GetHttpClientFactory(string openAiKey)
@@ -41,7 +54,7 @@ public class Generator
         {
             client.BaseAddress = new Uri(OPENAI_URL);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openAiKey);
-            client.Timeout = TimeSpan.FromSeconds(60);
+            client.Timeout = TimeSpan.FromSeconds(90);
         });
         var serviceProvider = serviceCollection.BuildServiceProvider();
         var httpClientFactory = serviceProvider.GetService<IHttpClientFactory>();
@@ -53,11 +66,15 @@ public class Generator
 
     public async Task<string?> Generate(string key)
     {
+        Stopwatch stopwatch = new();
+        stopwatch.Start();
         LambdaLogger.Log($"Begin {nameof(Generate)}(key: {key})");
 
         var data = await GetData();
         var parameters = GetParameters(key);
-        var dataAI = await GetDataFromOpenAI(data, parameters);
+
+        //var dataAI = await GetDataFromOpenAI(data, parameters);
+        var dataAI = await GetDataFromOpenAIParallel(data, parameters);
 
         var html = await GetHtmlFromTemplate(dataAI);
 
@@ -65,9 +82,11 @@ public class Generator
 
         html = await ReplaceProfilePictureFromOpenAI(html, parameters.As);
 
+        stopwatch.Stop();
+
         await Save(key, html);
 
-        LambdaLogger.Log($"End {nameof(Generate)}(key: {key})");
+        LambdaLogger.Log($"End {nameof(Generate)}(key: {key}) - Duration:{stopwatch.ElapsedMilliseconds} milliseconds");
         return html;
     }
 
@@ -163,7 +182,7 @@ public class Generator
         foreach (var experience in data.Experiences.AsEnumerable().Reverse())
         {
             var experiencePrompt = Prompts.GetExperiencePrompt(experience.Company, experience.Title, experience.Age, experience.Description, drawnUpAs);
-            experience.Description = await _openAI.SendChatCompletionRequest(experiencePrompt);
+            experience.Description = await _openAI.SendChatCompletionRequest(experiencePrompt, 500);
         }
 
         var aboutPrompt = Prompts.GetAboutPrompt(data.About, drawnUpAs);
@@ -171,6 +190,30 @@ public class Generator
 
         LambdaLogger.Log("End OpenAI data");
         return data;
+    }
+
+    public async Task<Data> GetDataFromOpenAIParallel(Data data, InputParameters inputParameters)
+    {
+        LambdaLogger.Log("Begin OpenAI data");
+
+        var drawnUpAs = string.Empty;
+        if (!string.IsNullOrEmpty(inputParameters.As))
+            drawnUpAs = $", drawn up as if it were {inputParameters.As} but without saying that it is {inputParameters.As}";
+
+        var tasks = data.Experiences.AsParallel().Select(x => { return SetExperienceFromOpenAI(x, drawnUpAs); });
+        await Task.WhenAll(tasks);
+
+        var aboutPrompt = Prompts.GetAboutPrompt(data.About, drawnUpAs);
+        data.About = await _openAI.SendSingleChatCompletionRequest(aboutPrompt);
+
+        LambdaLogger.Log("End OpenAI data");
+        return data;
+    }
+
+    private async Task SetExperienceFromOpenAI(Experience experience, string drawnUpAs)
+    {
+        var experiencePrompt = Prompts.GetExperiencePrompt(experience.Company, experience.Title, experience.Age, experience.Description, drawnUpAs);
+        experience.Description = await _openAI.SendChatCompletionRequest(experiencePrompt, 500);
     }
 
     public async Task<string> ReplaceBodyFromOpenAI(string html, InputParameters inputParameters)
@@ -192,7 +235,7 @@ public class Generator
             {
                 TranslateContentById(doc, inputParameters.Language, "basicInfo"),
                 TranslateContentById(doc, inputParameters.Language, "about"),
-                TranslateContentById(doc, inputParameters.Language, "experience"),
+                TranslateContentById(doc, inputParameters.Language, "experience", true),
                 TranslateContentById(doc, inputParameters.Language, "grey")
             };
 
@@ -205,17 +248,42 @@ public class Generator
         return html;
     }
 
-    private async Task TranslateContentById(HtmlDocument doc, string language, string id)
+    private async Task TranslateContentById(HtmlDocument doc, string language, string id, bool isPosibleLargeText = false)
     {
         HtmlNode nodeAbout = doc.GetElementbyId(id);
         if (nodeAbout == null)
             return;
 
         var aboutContent = nodeAbout.InnerHtml;
-        var prompt = $"Give me the same html code but with content translated to {language} language: {aboutContent}";
-        aboutContent = await _openAI.SendSingleChatCompletionRequest(prompt);
-        if (!string.IsNullOrEmpty(aboutContent))
-            nodeAbout.InnerHtml = aboutContent;
+        string response = string.Empty;
+
+        var parsed = isPosibleLargeText ? ParseText(aboutContent, "</li>", 2) : new[] { aboutContent };
+        foreach (var p in parsed)
+        {
+            var prompt = $"Give me the same html code but with content translated to {language} language: {p}";
+            response += await _openAI.SendSingleChatCompletionRequest(prompt);
+        }
+
+        if (!string.IsNullOrEmpty(response))
+            nodeAbout.InnerHtml = response;
+    }
+
+    static IEnumerable<string> ParseText(string text, string separator, int groupSize)
+    {
+
+        var parts = text.Split(new[] { separator }, StringSplitOptions.None).ToList();
+        for (var i = 0; i < parts.Count - 1; i++)
+            parts[i] = parts[i] + separator;
+
+        List<string> combined = new();
+
+        for (int i = 0; i < parts.Count; i += groupSize)
+        {
+            int endIndex = Math.Min(i + groupSize, parts.Count);
+            combined.Add(string.Join(string.Empty, parts.GetRange(i, endIndex - i)));
+        }
+
+        return combined;
     }
 
     public async Task<string> ReplaceProfilePictureFromOpenAI(string html, string @as)
@@ -232,6 +300,10 @@ public class Generator
 
         var profilePictureUrl = response.data.First().url;
 
+        var path = await SaveFileFromUrl(profilePictureUrl);
+        if (!string.IsNullOrEmpty(path))
+            profilePictureUrl = CDN_URL + path;
+
         var doc = new HtmlDocument();
         doc.LoadHtml(html);
         HtmlNode nodePicture = doc.GetElementbyId("profilePicture");
@@ -240,5 +312,26 @@ public class Generator
         html = doc.DocumentNode.OuterHtml;
 
         return html;
+    }
+
+    public async Task<string> SaveFileFromUrl(string url)
+    {
+        using HttpClient httpClient = new();
+        try
+        {
+            HttpResponseMessage response = await httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                byte[] contenido = await response.Content.ReadAsByteArrayAsync();
+                var path = await _s3Manager.Upload(contenido);
+                return path;
+            }
+        }
+        catch (Exception ex)
+        {
+            LambdaLogger.Log($"Error getting file.\r\n{ex.Message}\r\n{ex.StackTrace}");
+        }
+        return string.Empty;
     }
 }

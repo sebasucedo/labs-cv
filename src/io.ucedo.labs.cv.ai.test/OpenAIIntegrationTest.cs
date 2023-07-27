@@ -44,6 +44,30 @@ namespace io.ucedo.labs.cv.ai.test
         }
 
         [Test]
+        public async Task Experience_Software_Development_Manager_Test()
+        {
+            const string systemRoleContent = "software development manager";
+
+            if (_httpClientFactory == null)
+                throw new NullReferenceException(nameof(_httpClientFactory));
+
+            var openAI = new OpenAI(_httpClientFactory, systemRoleContent);
+
+            var prompt = $"Now i need a brief resume, really short, for my position in Ministerio de Educación de la Provincia de Tucumán as Senior .net Developer at this time period Jul 2007 - Feb 2012 based on: ASP.NET Webforms - ASP.NET mvc - SqlServer - Entity Framework - jQuery, drawn up as if it were software development manager but without saying that it is software development manager";
+
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
+
+            var response = await openAI.SendChatCompletionRequest(prompt);
+
+            stopwatch.Stop();
+            long elapsed = stopwatch.ElapsedMilliseconds;
+
+            Assert.IsNotEmpty(response);
+            Assert.IsTrue(elapsed < 60000);
+        }
+
+        [Test]
         public async Task About_Chat_Completion_As_Pirate_Test()
         {
             const string systemRoleContent = "a pirate";
