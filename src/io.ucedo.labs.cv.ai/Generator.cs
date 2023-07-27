@@ -17,10 +17,6 @@ using io.ucedo.labs.cv.ai.domain;
 using io.ucedo.labs.cv.ai.openai;
 using static io.ucedo.labs.cv.ai.domain.Data;
 using System.Diagnostics;
-using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
-using Amazon.S3;
-using Amazon;
-using Amazon.S3.Transfer;
 
 namespace io.ucedo.labs.cv.ai;
 
@@ -213,7 +209,7 @@ public class Generator
     private async Task SetExperienceFromOpenAI(Experience experience, string drawnUpAs)
     {
         var experiencePrompt = Prompts.GetExperiencePrompt(experience.Company, experience.Title, experience.Age, experience.Description, drawnUpAs);
-        experience.Description = await _openAI.SendChatCompletionRequest(experiencePrompt, 500);
+        experience.Description = await _openAI.SendSingleChatCompletionRequest(experiencePrompt, 500);
     }
 
     public async Task<string> ReplaceBodyFromOpenAI(string html, InputParameters inputParameters)
