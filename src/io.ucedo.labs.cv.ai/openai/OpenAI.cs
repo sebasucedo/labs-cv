@@ -38,7 +38,7 @@ public class OpenAI
     {
         try
         {
-            var client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
+            HttpClient client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
 
             _messages.Add(new Message { role = "user", content = userPrompt });
 
@@ -62,13 +62,12 @@ public class OpenAI
                 return responseMessage;
             }
 
-            throw new Exception($"Error: {response.StatusCode}");
+            throw new Exception($"Error, StatusCode: {response.StatusCode}\r\n Content: {content.ReadAsStringAsync()}");
         }
         catch (Exception ex)
         {
             LambdaLogger.Log($"Exception in {nameof(SendChatCompletionRequest)}(prompt: {userPrompt})\r\n{ex.Message}\r\n{ex.StackTrace}");
-
-            throw;
+            return string.Empty;
         }
     }
 
@@ -76,7 +75,7 @@ public class OpenAI
     {
         try
         {
-            var client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
+            HttpClient client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
 
             var requestData = new
             {
@@ -100,14 +99,12 @@ public class OpenAI
                 return responseMessage;
             }
 
-            throw new Exception($"Error: {response.StatusCode}");
-
+            throw new Exception($"Error, StatusCode: {response.StatusCode}\r\n Content: {content.ReadAsStringAsync()}");
         }
         catch (Exception ex)
         {
             LambdaLogger.Log($"Exception in {nameof(SendSingleChatCompletionRequest)}(prompt: {prompt})\r\n{ex.Message}\r\n{ex.StackTrace}");
-
-            throw;
+            return string.Empty;
         }
     }
 
@@ -115,7 +112,7 @@ public class OpenAI
     {
         try
         {
-            var client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
+            HttpClient client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
 
             byte[] imageData = File.ReadAllBytes(imagePath);
             byte[] maskData = File.ReadAllBytes(maskPath);
@@ -137,13 +134,12 @@ public class OpenAI
                 return responseBody;
             }
 
-            throw new Exception($"Error: {response.StatusCode}");
+            throw new Exception($"Error, StatusCode: {response.StatusCode}\r\n Content: {content.ReadAsStringAsync()}");
         }
         catch (Exception ex)
         {
             LambdaLogger.Log($"Exception in {nameof(SendImagesEditsRequest)}(prompt: {userPrompt})\r\n{ex.Message}\r\n{ex.StackTrace}");
-
-            throw;
+            return null;
         }
     }
 

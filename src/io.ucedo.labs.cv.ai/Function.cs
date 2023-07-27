@@ -19,7 +19,7 @@ public class Function
 
     public async Task<string> FunctionHandler(string input, ILambdaContext context)
     {
-        var key = input.Replace(" ", "%20");
+        var key = input.Replace(" ", "%20").Replace("\u0026", "&");
 
         var html = await _generator.Generate(key) ?? Constants.SHRUGGIE;
 
