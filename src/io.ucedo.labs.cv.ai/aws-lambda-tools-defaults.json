@@ -22,6 +22,6 @@
     "function-subnets"      : "",
     "function-security-groups" : "",
     "tracing-mode"             : "PassThrough",
-    "environment-variables"    : "\"openai_api_key\"=\"{KEY}\"",
+    "environment-variables"    : "",
     "image-tag"                : ""
 }
