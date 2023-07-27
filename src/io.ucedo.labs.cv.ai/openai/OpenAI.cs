@@ -71,7 +71,7 @@ public class OpenAI
         }
     }
 
-    public async Task<string> SendSingleChatCompletionRequest(string prompt)
+    public async Task<string> SendSingleChatCompletionRequest(string prompt, int maxTokens = Constants.MAX_TOKENS)
     {
         try
         {
@@ -86,6 +86,7 @@ public class OpenAI
                         new { role = "user", content = prompt }
                     },
                 temperature = Temperature,
+                max_tokens = maxTokens
             };
 
             var content = new StringContent(JsonSerializer.Serialize(requestData), Encoding.UTF8, "application/json");
