@@ -5,15 +5,20 @@ Welcome to the repository for our Personal CV Generator. This application simpli
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Features](#features)
-3. [Getting Started](#getting-started)
-4. [How to Use](#how-to-use)
-5. [Contribution](#contribution)
-6. [Licence](#licence)
+2. [Live URL](#live-url)
+3. [Features](#features)
+4. [Getting Started](#getting-started)
+5. [How to Use](#how-to-use)
+6. [Contribution](#contribution)
+7. [Licence](#licence)
 
 ## Overview
 
 The Personal CV Generator project was born out of a need to automate and simplify the process of creating a CV. With the integration of OpenAI's advanced language model, GPT-3.5-turbo, and the efficient scalability of AWS Lambda functions, we aim to make this process effortless and intuitive.
+
+## Live URL
+
+[Visit the live application here](https://labs.ucedo.io/cv)
 
 ## Features
 
