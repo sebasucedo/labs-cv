@@ -8,8 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
 using DotLiquid;
-using System.Collections.Specialized;
-using System.Web;
 using HtmlAgilityPack;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Headers;
@@ -17,6 +15,7 @@ using io.ucedo.labs.cv.ai.domain;
 using io.ucedo.labs.cv.ai.openai;
 using static io.ucedo.labs.cv.ai.domain.Data;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace io.ucedo.labs.cv.ai;
 
@@ -66,8 +65,8 @@ public class Generator
         stopwatch.Start();
         LambdaLogger.Log($"Begin {nameof(Generate)}(key: {key})");
 
-        var data = await GetData();
         var parameters = GetParameters(key);
+        var data = await GetData(parameters.Datasource);
 
         //var dataAI = await GetDataFromOpenAI(data, parameters);
         var dataAI = await GetDataFromOpenAIParallel(data, parameters);
@@ -98,15 +97,21 @@ public class Generator
         }
     }
 
-    private static Dictionary<string, string> ParseQueryString(string queryString)
+    public static IDictionary<string, string> ParseQueryString(string queryString)
     {
-        NameValueCollection queryParameters = HttpUtility.ParseQueryString(queryString);
-        //return queryParameters.AllKeys.ToDictionary(k => k, k => queryParameters[k]);
+        var result = new Dictionary<string, string>();
+        var regex = new Regex(@"(?<key>\w+)=((?<value>'[^']*')|(?<value>[^&]*))");
+        var matches = regex.Matches(queryString);
 
-        var dictionary = new Dictionary<string, string>();
-        foreach (string key in queryParameters.Keys)
-            dictionary.Add(key, queryParameters[key] ?? string.Empty);
-        return dictionary;
+        foreach (Match match in matches)
+        {
+            var key = match.Groups["key"].Value;
+            var value = match.Groups["value"].Value;
+
+            result[key] = value.Trim('\''); 
+        }
+
+        return result;
     }
 
     private static InputParameters GetParameters(string queryString)
@@ -136,13 +141,19 @@ public class Generator
         if (p.ContainsKey(format))
             parameters.Format = p[format];
 
+        var datasource = nameof(InputParameters.Datasource).ToLower();
+        if (p.ContainsKey(datasource))
+            parameters.Datasource = p[datasource];
+
         return parameters;
     }
 
-    private static async Task<Data> GetData()
+    private static async Task<Data> GetData(string datasource)
     {
         using var httpClient = new HttpClient();
-        var response = await httpClient.GetAsync(DATA_URL);
+
+        var dataUrl = datasource == Constants.DEFAULT ? DATA_URL : datasource;
+        var response = await httpClient.GetAsync(dataUrl);
         var json = await response.Content.ReadAsStringAsync();
 
         var options = new JsonSerializerOptions

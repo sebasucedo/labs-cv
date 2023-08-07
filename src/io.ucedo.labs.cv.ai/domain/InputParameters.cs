@@ -12,4 +12,5 @@ public class InputParameters
     public string As { get; set; } = string.Empty;
     public string Language { get; set; } = Constants.DEFAULT_LANGUAGE;
     public string Format { get; set; } = Constants.DEFAULT;
+    public string Datasource { get; set; } = Constants.DEFAULT;
 }
