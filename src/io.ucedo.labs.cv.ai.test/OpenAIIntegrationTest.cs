@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 namespace io.ucedo.labs.cv.ai.test
 {
     [TestFixture]
+    [Ignore("on demand")]
     public class OpenAIIntegrationTest
     {
         IHttpClientFactory? _httpClientFactory;
@@ -118,5 +119,37 @@ namespace io.ucedo.labs.cv.ai.test
             Assert.IsTrue(isValidUrl);
             Assert.IsNotNull(responseUri);
         }
+
+
+        [Test]
+        public async Task Image_Edits_From_Url_Test()
+        {
+            const string PROFILE_PICTURE_URL = "https://www.dropbox.com/scl/fi/segv08x17od7zrfgi4v4l/soledad_profile_picture.png?rlkey=nw60ocolxno65c7r8rb1046zm&dl=1";
+            const string PROFILE_PICTURE_MASK_URL = "https://www.dropbox.com/scl/fi/lscebu9bbkljqpeh16ysb/soledad_profile_picture_mask.png?rlkey=09zseeodz9oqxkw5pvlt2jlxj&dl=1";
+
+            using HttpClient httpClient = new();
+            byte[] profilePictureResponse = await httpClient.GetByteArrayAsync(PROFILE_PICTURE_URL);
+            byte[] profilePictureMaskResponse = await httpClient.GetByteArrayAsync(PROFILE_PICTURE_MASK_URL);
+
+
+            const string systemRoleContent = "a disney princess";
+
+            if (_httpClientFactory == null)
+                throw new NullReferenceException(nameof(_httpClientFactory));
+
+            var openAI = new OpenAI(_httpClientFactory, systemRoleContent);
+
+            var prompt = $"In the following image of me, I need you to depict me as {systemRoleContent}";
+
+            var response = await openAI.SendImagesEditsRequest(prompt, profilePictureResponse, profilePictureMaskResponse);
+
+            Assert.IsNotNull(response);
+
+            var url = response?.data.First().url;
+            var isValidUrl = Uri.TryCreate(url, UriKind.Absolute, out var responseUri);
+            Assert.IsTrue(isValidUrl);
+            Assert.IsNotNull(responseUri);
+        }
+
     }
 }

@@ -3,7 +3,6 @@ using io.ucedo.labs.cv.ai.domain;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -18,7 +17,7 @@ public class OpenAI
 
     private readonly IHttpClientFactory _httpClientFactory;
 
-    public string Model { get; set; } = "gpt-3.5-turbo";
+    public string Model { get; set; } = openai.Model.GPT35TURBO;
     public double Temperature { get; set; } = 0.7;
     public string SystemRoleContent { get; set; } = "You are a helpful assistant";
 
@@ -111,12 +110,18 @@ public class OpenAI
 
     public async Task<ImageResponse?> SendImagesEditsRequest(string userPrompt, string imagePath, string maskPath)
     {
+
+        byte[] imageData = File.ReadAllBytes(imagePath);
+        byte[] maskData = File.ReadAllBytes(maskPath);
+
+        return await SendImagesEditsRequest(userPrompt, imageData, maskData);
+    }
+
+    public async Task<ImageResponse?> SendImagesEditsRequest(string userPrompt, byte[] imageData, byte[] maskData)
+    {
         try
         {
             HttpClient client = _httpClientFactory.CreateClient(Constants.OPENAI_CLIENT_NAME);
-
-            byte[] imageData = File.ReadAllBytes(imagePath);
-            byte[] maskData = File.ReadAllBytes(maskPath);
 
             using var content = new MultipartFormDataContent
             {

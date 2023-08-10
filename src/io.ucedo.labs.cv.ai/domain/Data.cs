@@ -13,6 +13,10 @@ public class Data
 {
     public string Name { get; set; } = null!;
     public string Headline { get; set; } = null!;
+    [JsonPropertyName("profile_picture_url")]
+    public string ProfilePictureUrl { get; set; } = string.Empty;
+    [JsonPropertyName("profile_picture_mask_url")]
+    public string ProfilePictureMaskUrl { get; set; } = string.Empty;
     public string About { get; set; } = null!;
     public IEnumerable<InfoItem> Info { get; set; } = Enumerable.Empty<InfoItem>();
     public IEnumerable<Experience> Experiences { get; set; } = Enumerable.Empty<Experience>();
