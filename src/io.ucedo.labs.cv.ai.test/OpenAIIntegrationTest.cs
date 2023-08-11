@@ -39,7 +39,7 @@ namespace io.ucedo.labs.cv.ai.test
         [SetUp]
         public void SetUp()
         {
-            var openAIKey = "{KEY}";
+            var openAIKey = Environment.GetEnvironmentVariable("openai_api_key") ?? string.Empty;
 
             _httpClientFactory = GetHttpClientFactory(openAIKey);
         }
