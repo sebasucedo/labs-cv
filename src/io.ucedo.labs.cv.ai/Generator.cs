@@ -8,8 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
 using DotLiquid;
-using System.Collections.Specialized;
-using System.Web;
 using HtmlAgilityPack;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Headers;
@@ -17,6 +15,7 @@ using io.ucedo.labs.cv.ai.domain;
 using io.ucedo.labs.cv.ai.openai;
 using static io.ucedo.labs.cv.ai.domain.Data;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace io.ucedo.labs.cv.ai;
 
@@ -66,8 +65,8 @@ public class Generator
         stopwatch.Start();
         LambdaLogger.Log($"Begin {nameof(Generate)}(key: {key})");
 
-        var data = await GetData();
         var parameters = GetParameters(key);
+        var data = await GetData(parameters.Datasource);
 
         //var dataAI = await GetDataFromOpenAI(data, parameters);
         var dataAI = await GetDataFromOpenAIParallel(data, parameters);
@@ -76,7 +75,7 @@ public class Generator
 
         html = await ReplaceBodyFromOpenAI(html, parameters);
 
-        html = await ReplaceProfilePictureFromOpenAI(html, parameters.As);
+        html = await ReplaceProfilePictureFromOpenAI(html, parameters.As, data);
 
         stopwatch.Stop();
 
@@ -96,75 +95,6 @@ public class Generator
         {
             LambdaLogger.Log($"Error when persisting to DynamoDB. {ex.Message}");
         }
-    }
-
-    private static Dictionary<string, string> ParseQueryString(string queryString)
-    {
-        NameValueCollection queryParameters = HttpUtility.ParseQueryString(queryString);
-        //return queryParameters.AllKeys.ToDictionary(k => k, k => queryParameters[k]);
-
-        var dictionary = new Dictionary<string, string>();
-        foreach (string key in queryParameters.Keys)
-            dictionary.Add(key, queryParameters[key] ?? string.Empty);
-        return dictionary;
-    }
-
-    private static InputParameters GetParameters(string queryString)
-    {
-        var parameters = new InputParameters();
-
-        if (queryString == Constants.DEFAULT)
-            return parameters;
-
-        var queryStringParameters = ParseQueryString(queryString);
-        if (queryStringParameters == null || queryStringParameters.Count == 0)
-            return parameters;
-
-        var p = queryStringParameters;
-
-        parameters.QueryString = queryString;
-
-        var @as = nameof(InputParameters.As).ToLower();
-        if (p.ContainsKey(@as))
-            parameters.As = p[@as];
-
-        var language = nameof(InputParameters.Language).ToLower();
-        if (p.ContainsKey(language))
-            parameters.Language = p[language];
-
-        var format = nameof(InputParameters.Format).ToLower();
-        if (p.ContainsKey(format))
-            parameters.Format = p[format];
-
-        return parameters;
-    }
-
-    private static async Task<Data> GetData()
-    {
-        using var httpClient = new HttpClient();
-        var response = await httpClient.GetAsync(DATA_URL);
-        var json = await response.Content.ReadAsStringAsync();
-
-        var options = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-        var data = JsonSerializer.Deserialize<Data>(json, options);
-        if (data == null)
-            throw new NullReferenceException(json.ToString());
-
-        return data;
-    }
-
-    private static async Task<string> GetHtmlFromTemplate(Data data)
-    {
-        string templateContent = await File.ReadAllTextAsync("./views/body.liquid");
-
-        Template template = Template.Parse(templateContent);
-        var templarParameters = Hash.FromAnonymousObject(data);
-        var html = template.Render(templarParameters);
-
-        return html;
     }
 
     public async Task<Data> GetDataFromOpenAI(Data data, InputParameters inputParameters)
@@ -253,7 +183,7 @@ public class Generator
         var aboutContent = nodeAbout.InnerHtml;
         string response = string.Empty;
 
-        var parsed = isPosibleLargeText ? ParseText(aboutContent, "</li>", 2) : new[] { aboutContent };
+        var parsed = isPosibleLargeText ? StringHelper.ParseText(aboutContent, "</li>", 2) : new[] { aboutContent };
         foreach (var p in parsed)
         {
             var prompt = $"Give me the same html code but with content translated to {language} language: {p}";
@@ -264,33 +194,14 @@ public class Generator
             nodeAbout.InnerHtml = response;
     }
 
-    static IEnumerable<string> ParseText(string text, string separator, int groupSize)
-    {
-
-        var parts = text.Split(new[] { separator }, StringSplitOptions.None).ToList();
-        for (var i = 0; i < parts.Count - 1; i++)
-            parts[i] = parts[i] + separator;
-
-        List<string> combined = new();
-
-        for (int i = 0; i < parts.Count; i += groupSize)
-        {
-            int endIndex = Math.Min(i + groupSize, parts.Count);
-            combined.Add(string.Join(string.Empty, parts.GetRange(i, endIndex - i)));
-        }
-
-        return combined;
-    }
-
-    public async Task<string> ReplaceProfilePictureFromOpenAI(string html, string @as)
+    public async Task<string> ReplaceProfilePictureFromOpenAI(string html, string @as, Data data)
     {
         if (string.IsNullOrEmpty(@as))
             return html;
 
-        var imagePath = "./files/profile_web.png";
-        var maskPath = "./files/profile_web_mask.png";
         var prompt = Prompts.GetProfilePicturePrompt(@as);
-        var response = await _openAI.SendImagesEditsRequest(prompt, imagePath, maskPath);
+
+        var response = await GetImage(data, prompt);
         if (response == null || !response.data.Any())
             return html;
 
@@ -308,6 +219,40 @@ public class Generator
         html = doc.DocumentNode.OuterHtml;
 
         return html;
+    }
+
+    private async Task<ImageResponse?> GetImage(Data data, string prompt)
+    {
+        if (!string.IsNullOrEmpty(data.ProfilePictureUrl) || !string.IsNullOrEmpty(data.ProfilePictureMaskUrl))
+        {
+            byte[] profilePictureResponse;
+            byte[] profilePictureMaskResponse;
+
+            try
+            {
+                using HttpClient httpClient = new();
+
+                var taskProfilePicture = httpClient.GetByteArrayAsync(data.ProfilePictureUrl);
+                var taskProfilePictureMask = httpClient.GetByteArrayAsync(data.ProfilePictureMaskUrl);
+
+                profilePictureResponse = await taskProfilePicture;
+                profilePictureMaskResponse = await taskProfilePictureMask;
+            }
+            catch (Exception ex)
+            {
+                LambdaLogger.Log($"Error getting images from url.\r\n{ex.Message}\r\n{ex.StackTrace}");
+                return null;
+            }
+
+            var responsefromData = await _openAI.SendImagesEditsRequest(prompt, profilePictureResponse, profilePictureMaskResponse);
+            return responsefromData;
+        }
+
+        var imagePath = "./files/profile_web.png";
+        var maskPath = "./files/profile_web_mask.png";
+
+        var response = await _openAI.SendImagesEditsRequest(prompt, imagePath, maskPath);
+        return response;
     }
 
     public async Task<string> SaveFileFromUrl(string url)
@@ -329,5 +274,70 @@ public class Generator
             LambdaLogger.Log($"Error getting file.\r\n{ex.Message}\r\n{ex.StackTrace}");
         }
         return string.Empty;
+    }
+
+
+    private static InputParameters GetParameters(string queryString)
+    {
+        var parameters = new InputParameters();
+
+        if (queryString == Constants.DEFAULT)
+            return parameters;
+
+        var queryStringParameters = StringHelper.ParseQueryString(queryString);
+        if (queryStringParameters == null || queryStringParameters.Count == 0)
+            return parameters;
+
+        var p = queryStringParameters;
+
+        parameters.QueryString = queryString;
+
+        var @as = nameof(InputParameters.As).ToLower();
+        if (p.ContainsKey(@as))
+            parameters.As = p[@as];
+
+        var language = nameof(InputParameters.Language).ToLower();
+        if (p.ContainsKey(language))
+            parameters.Language = p[language];
+
+        var format = nameof(InputParameters.Format).ToLower();
+        if (p.ContainsKey(format))
+            parameters.Format = p[format];
+
+        var datasource = nameof(InputParameters.Datasource).ToLower();
+        if (p.ContainsKey(datasource))
+            parameters.Datasource = p[datasource];
+
+        return parameters;
+    }
+
+    private static async Task<Data> GetData(string datasource)
+    {
+        using var httpClient = new HttpClient();
+
+        var dataUrl = datasource == Constants.DEFAULT ? DATA_URL : datasource;
+        var response = await httpClient.GetAsync(dataUrl);
+        var json = await response.Content.ReadAsStringAsync();
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+        var data = JsonSerializer.Deserialize<Data>(json, options);
+        if (data == null)
+            throw new NullReferenceException(json.ToString());
+
+        return data;
+    }
+
+    private static async Task<string> GetHtmlFromTemplate(Data data)
+    {
+        string templateContent = await File.ReadAllTextAsync("./views/body.liquid");
+
+        Template template = Template.Parse(templateContent);
+        var templarParameters = Hash.FromAnonymousObject(data);
+        var html = template.Render(templarParameters);
+
+        return html;
     }
 }
